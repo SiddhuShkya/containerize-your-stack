@@ -68,7 +68,7 @@ That's the whole swap — proof that the layering actually works.
 ### 1. Clone the repo
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/SiddhuShkya/containerize-your-stack.git
 cd containerize-your-stack
 ```
 
