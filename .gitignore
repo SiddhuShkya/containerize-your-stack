@@ -1,5 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment variables & secrets (keep .env.example committed)
 .env
-venv/
-__pycache__/
-*.pyc
-.pytest_cache/
+.env*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating System files
+.DS_Store
+Thumbs.db

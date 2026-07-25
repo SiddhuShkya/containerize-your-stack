@@ -1,37 +1,34 @@
 services:
+
   postgres:
     image: postgres:16-alpine
-    container_name: postgres_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql/data          # named volume → persists across restarts
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql  # runs once on first start
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   app:
     build: .
-    container_name: task_api
     restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
-      - "8000:8000"
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PORT: 3000
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy   # wait until Postgres is ready before starting app
 
 volumes:
   postgres_data:
-    driver: local

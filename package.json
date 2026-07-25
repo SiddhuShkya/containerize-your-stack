@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "swagger-ui-express": "^5.0.1",
+    "pg": "^8.13.3",
+    "dotenv": "^16.4.7"
+  }
+}

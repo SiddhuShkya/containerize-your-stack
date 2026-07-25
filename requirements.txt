@@ -1,5 +1,0 @@
-uvicorn
-pydantic
-fastapi[standard]
-psycopg[binary]
-python-dotenv

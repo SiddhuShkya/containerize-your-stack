@@ -1,0 +1,17 @@
+// db.js — Singleton Postgres connection pool.
+// Import this file anywhere you need a DB connection; the same pool
+// instance is reused across the whole process (module-level singleton).
+
+require('dotenv').config();
+const { Pool } = require('pg');
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+});
+
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle Postgres client', err);
+    process.exit(-1);
+});
+
+module.exports = pool;

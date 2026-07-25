@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS todos (
-    id     SERIAL PRIMARY KEY,
-    task   TEXT NOT NULL,
-    status BOOLEAN NOT NULL DEFAULT FALSE
-);
