@@ -1,102 +1,155 @@
-# Containerize Your Stack
+# Containerize Your Stack 🐳🐘
 
-A Node.js task API backed by **PostgreSQL**, containerised with Docker Compose.
+A production-ready Node.js Express Task Management API backed by **PostgreSQL**, fully containerised using Docker and Docker Compose.
 
-## Quick start
+---
+
+## 🚀 Quick Start
+
+Run the entire application stack (Node.js API + PostgreSQL database) with a single command:
 
 ```bash
-# Copy environment config
-cp .env.example .env   # edit credentials if you like
+# 1. Clone the repository & navigate into project directory
+cd "Containerize your stack"
 
-# Start the whole stack (Postgres + app)
+# 2. Copy environment configuration file
+cp .env.example .env
+
+# 3. Build and launch the container stack
 docker compose up --build
 ```
 
-The API is available at **http://localhost:3000**.  
-Swagger docs: **http://localhost:3000/docs**
+- **API Base URL:** `http://localhost:3000`
+- **Health Check:** `http://localhost:3000/health`
+- **Interactive Swagger Docs:** `http://localhost:3000/docs`
 
 ---
 
-## Architecture
+## 🏛️ Architecture & Layering
+
+The application strictly follows a layered architecture to decouple business logic from data storage:
 
 ```
-HTTP request
-    ↓
-routes/tasks.routes.js     (translate HTTP ↔ service calls)
-    ↓
-services/tasks.service.js  (business logic, validation, error types)
-    ↓
-repositories/tasks.repository.js  ← **only this file changed**
-    ↓
-PostgreSQL (Docker)
+HTTP Request
+    │
+    ▼
+┌───────────────────────────────────────┐
+│  src/routes/tasks.routes.js           │  <-- Route (HTTP) Layer: Parses requests & status codes
+└───────────────────────────────────────┘
+    │
+    ▼
+┌───────────────────────────────────────┐
+│  src/services/tasks.service.js        │  <-- Service Layer: Enforces business logic & validation
+└───────────────────────────────────────┘
+    │
+    ▼
+┌───────────────────────────────────────┐
+│  src/repositories/tasks.repository.js │  <-- Repository Layer: Swapped from In-Memory to PostgreSQL!
+└───────────────────────────────────────┘
+    │
+    ▼
+┌───────────────────────────────────────┐
+│  PostgreSQL 16 (Docker Container)    │  <-- Database: Persisted via Docker Volume
+└───────────────────────────────────────┘
 ```
 
-### How the repository was swapped
+### 🔄 How the Repository Was Swapped
 
-The original `tasks.repository.js` held data in a JavaScript array. It exported six functions: `findAll`, `findById`, `create`, `update`, `remove`, `reset`.
-
-The new version implements the **exact same six functions** using `pg.Pool` queries against a Postgres `tasks` table. Because the interface is identical, **`tasks.service.js` and `tasks.routes.js` required no business-logic changes** — only the addition of `async/await` to propagate the Promises that a real database introduces.
-
----
-
-## API reference
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/tasks` | List all tasks (`?done=true/false`, `?search=...`) |
-| POST | `/tasks` | Create a task |
-| GET | `/tasks/:id` | Get a single task |
-| PUT | `/tasks/:id` | Update a task |
-| DELETE | `/tasks/:id` | Delete a task |
-| GET | `/stats` | `{ total, done, open }` |
-| POST | `/reset` | Restore seed data |
+1. **Interface Contract:** The original repository stored tasks in a local JavaScript array and exposed `findAll()`, `findById()`, `create()`, `update()`, `remove()`, and `reset()`.
+2. **Postgres Implementation:** The new `tasks.repository.js` implements the exact same 6 functions using parameterized SQL queries (`pg.Pool`).
+3. **Zero Business Logic Changes:** `tasks.service.js` and `tasks.routes.js` remain completely unchanged in terms of business rules, validation, status codes, and HTTP responses. The only modification was making caller methods `async`/`await` to handle asynchronous database I/O.
 
 ---
 
-## Proving persistence
+## ⚙️ Environment Configuration
 
-Steps taken to verify that data survives a full restart:
+All environment variables are loaded securely from `.env` (gitignored). A committed `.env.example` file is provided for reference:
+
+| Variable | Description | Default / Example Value |
+|---|---|---|
+| `POSTGRES_USER` | PostgreSQL superuser username | `siddhu` |
+| `POSTGRES_PASSWORD` | PostgreSQL superuser password | `shakya2830` |
+| `POSTGRES_DB` | PostgreSQL database name | `appdb` |
+| `POSTGRES_PORT` | Host port for PostgreSQL | `5432` |
+| `POSTGRES_HOST` | Hostname (`postgres` inside Docker Compose, `localhost` for native dev) | `postgres` |
+| `DATABASE_URL` | Full PostgreSQL connection string | `postgresql://siddhu:shakya2830@postgres:5432/appdb` |
+| `PORT` | Application server port | `3000` |
+
+---
+
+## 📌 API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | API Metadata & available endpoints list |
+| `GET` | `/health` | Service health status check (`{"status": "ok"}`) |
+| `GET` | `/docs` | Interactive OpenAPI / Swagger documentation |
+| `GET` | `/tasks` | List tasks (supports `?done=true/false` & `?search=term`) |
+| `POST` | `/tasks` | Create a new task (`{"title": "..."}`) |
+| `GET` | `/tasks/:id` | Get details for a specific task |
+| `PUT` | `/tasks/:id` | Update task title and/or completed status |
+| `DELETE` | `/tasks/:id` | Delete a task by ID |
+| `GET` | `/stats` | Aggregate task stats (`{ total, done, open }`) |
+| `POST` | `/reset` | Truncate database and restore initial seed tasks |
+
+---
+
+## 🧪 Proof of Data Persistence
+
+Data is stored in a dedicated named Docker Volume (`postgres_data`) mapped to `/var/lib/postgresql/data`. This ensures data persists across container shutdowns, code changes, and application restarts.
+
+### Verification Steps Taken:
 
 ```bash
-# 1. Start the stack
+# 1. Start the stack in background
 docker compose up --build -d
 
-# 2. Create a new task
+# 2. Add a new task via API
 curl -s -X POST http://localhost:3000/tasks \
   -H 'Content-Type: application/json' \
-  -d '{"title":"Persist me"}' | jq
+  -d '{"title": "Verify persistent volume"}'
 
-# 3. Confirm it exists
-curl -s http://localhost:3000/tasks | jq
+# 3. Verify the new task is returned
+curl -s http://localhost:3000/tasks
 
-# 4. Full stack restart (removes containers, keeps volume)
+# 4. Stop and remove containers (Volume remains intact)
 docker compose down
+
+# 5. Restart the container stack
 docker compose up -d
 
-# 5. Task still there ✓
-curl -s http://localhost:3000/tasks | jq
+# 6. Query tasks again — the task created in Step 2 is still present!
+curl -s http://localhost:3000/tasks
 ```
-
-The named Docker volume `postgres_data` stores the Postgres data directory, so rows survive `docker compose down && docker compose up`.
 
 ---
 
-## Project structure
+## 📁 Project Structure
 
 ```
 .
 ├── db/
-│   └── init.sql            # Table creation + seed rows (runs once on first start)
+│   └── init.sql            # Table schema & initial seed data script
 ├── src/
-│   ├── db.js               # Singleton pg.Pool connection pool
+│   ├── app.js              # Express app setup & middleware configuration
+│   ├── db.js               # PostgreSQL connection pool instance (pg)
+│   ├── errors.js           # Domain error classes (NotFoundError, ValidationError)
+│   ├── middleware/
+│   │   └── error-handler.js# Global HTTP error handler middleware
 │   ├── repositories/
-│   │   └── tasks.repository.js   # ← swapped from memory to Postgres
-│   ├── services/
-│   │   └── tasks.service.js      # unchanged (business logic)
-│   └── routes/
-│       └── tasks.routes.js       # unchanged (HTTP layer)
+│   │   └── tasks.repository.js  # PostgreSQL repository implementation
+│   ├── routes/
+│   │   ├── meta.routes.js       # Health and metadata routes
+│   │   └── tasks.routes.js      # Task HTTP endpoints
+│   └── services/
+│       └── tasks.service.js     # Task business logic
+├── .dockerignore
+├── .env.example
+├── .gitignore
 ├── Dockerfile
 ├── docker-compose.yml
-├── .env                    # gitignored — real credentials
-└── .env.example            # committed — placeholder values
+├── index.js
+├── openapi.json
+├── package.json
+└── README.md
 ```
